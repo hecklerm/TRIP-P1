@@ -76,13 +76,13 @@ int chk;
 String msg;
 
 // Geiger counter
-volatile unsigned long counts = 0; // GM Tube events
-unsigned long cpm = 0;             // Counts Per Minute
+volatile unsigned long radCtr = 0; // GM Tube events
+unsigned long cpm = 0;             // radCtr Per Minute
 unsigned long curMs;
 unsigned long preMs; 
 
-void tube_impulse() { // Captures count of events from Geiger counter board
-  counts++;
+void geiger_pulse() { // Captures count of events from Geiger counter board
+  radCtr++;
 }
 
 void setup() {
@@ -112,7 +112,7 @@ void setup() {
 
   pinMode(GEIGER_PIN, INPUT);       // Set pin to input for capturing GM Tube events
   interrupts();                     // Enable interrupts (in case they were previously disabled)
-  attachInterrupt(digitalPinToInterrupt(GEIGER_PIN), tube_impulse, FALLING);
+  attachInterrupt(digitalPinToInterrupt(GEIGER_PIN), geiger_pulse, FALLING);
   preMs = millis();
   
   //Serial.setTimeout(500);   // MAH: Default is 1000ms/1s
@@ -187,8 +187,8 @@ void loop() {
       chk = DHT11.read();
   
       // Geiger reading
-      cpm = counts * (60000 / (curMs - preMs));
-      counts = 0;
+      cpm = radCtr * (60000 / (curMs - preMs));
+      radCtr = 0;
   
       // MAH TODO: Need to add in the x/y/z readings next
       
@@ -375,13 +375,5 @@ void pulse(int direction) {
   }
   delay(350);
   stop(500);
-}
-
-/*
- * UTILITY METHODS
- */
-long parseNumber() {
-  String numStr = incoming;
-  return numStr.substring(2).toInt();
 }
 

@@ -23,7 +23,6 @@
 #include <RunningMedian.h>
 #include <SPI.h>
 #include <dht11.h>
-//#include <Versalino.h>
 
 // Define convenience compass directions/bearings
 #define NORTH 0
@@ -79,7 +78,7 @@ String msg;
 volatile unsigned long radCtr = 0; // GM Tube events
 unsigned long cpm = 0;             // radCtr Per Minute
 unsigned long curMs;
-unsigned long preMs; 
+unsigned long preMs;
 
 void geiger_pulse() { // Captures count of events from Geiger counter board
   radCtr++;
@@ -122,58 +121,64 @@ void loop() {
   if (Serial.available() > 0) {
     Serial.readBytesUntil('\n', incoming, sizeof(incoming));
 
-    switch (incoming[0]) {
-    case 'F':
-      forward();
-      Serial.println(">F:");
-      break;
-    case 'B':
-      backward();
-      Serial.println(">B:");
-      break;
-    case 'L':
-      left();
-      Serial.println(">L:");
-      break;
-    case 'R':
-      right();
-      Serial.println(">R:");
-      break;
-    case 'f':
-      cmdNumber = pingForward();
-      Serial.print(">f:"); Serial.println(cmdNumber);
-      break;
-    case 'l':
-      cmdNumber = pingLeft();
-      Serial.print(">l:"); Serial.println(cmdNumber);
-      break;
-    case 'r':
-      cmdNumber = pingRight();
-      Serial.print(">r:"); Serial.println(cmdNumber);
-      break;
-    case 'c':
-      // Compass test
-      Serial.print("Compass reading="); Serial.println(getCurrentHeading());
-      break;
-    case 'x':
-      // Test case: servo center
-      positionRadar(SERVO_FORWARD);
-      Serial.println("Centered.");
-      break;
-    case 'y':
-      // Test case: servo left
-      positionRadar(SERVO_LEFT);
-      Serial.println("Left.");
-      break;
-    case 'z':
-      // Test case: servo right
-      positionRadar(SERVO_RIGHT);
-      Serial.println("Right.");
-      break;
-    default:  // STOP!
-      stop(0);
-      Serial.println(">S:0");
-      break;
+    for (int i=0; i<sizeof(incoming); i++) {
+      if (incoming[i] != NULL) {    
+        switch (incoming[i]) {
+        case 'F':
+          forward();
+          Serial.println(">F");
+          break;
+        case 'B':
+          backward();
+          Serial.println(">B");
+          break;
+        case 'L':
+          left();
+          Serial.println(">L");
+          break;
+        case 'R':
+          right();
+          Serial.println(">R");
+          break;
+        case 'f':
+          cmdNumber = pingForward();
+          Serial.print(">f"); Serial.println(cmdNumber);
+          break;
+        case 'l':
+          cmdNumber = pingLeft();
+          Serial.print(">l"); Serial.println(cmdNumber);
+          break;
+        case 'r':
+          cmdNumber = pingRight();
+          Serial.print(">r"); Serial.println(cmdNumber);
+          break;
+        case 'c':
+          // Compass test
+          Serial.print("Compass reading="); Serial.println(getCurrentHeading());
+          break;
+        case 'x':
+          // Test case: servo center
+          positionRadar(SERVO_FORWARD);
+          Serial.println("Centered.");
+          break;
+        case 'y':
+          // Test case: servo left
+          positionRadar(SERVO_LEFT);
+          Serial.println("Left.");
+          break;
+        case 'z':
+          // Test case: servo right
+          positionRadar(SERVO_RIGHT);
+          Serial.println("Right.");
+          break;
+        default:  // STOP!
+          stop(0);
+          Serial.println(">S");
+          break;
+        }
+      } else {
+        break;
+      }
     }
     
     // Clear the array before looping for more
@@ -199,6 +204,8 @@ void loop() {
       msg += DHT11.temperature * 100;
       msg += ",";
       msg += cpm;
+      msg += ",";
+      msg += (int) (getCurrentHeading() + .5);  // Add 1/2 & cast to int rounds to nearest whole #
       msg += "}";
       Serial.println(msg);
 
@@ -306,17 +313,17 @@ float getCurrentHeading() {
     if(heading > 2*PI)
       heading -= 2*PI;
       
+    // Convert radians to degrees for readability, add to bearings array.
     bearings.add(heading * 180/M_PI);
     
     //Serial.print("Reading "); Serial.print(i); Serial.print(" is "); Serial.print(heading * 180/M_PI); Serial.println(" degrees.");
   }
    
-  // Convert radians to degrees for readability.
-  //float headingDegrees = heading * 180/M_PI;  MAH
+//  Serial.print("  X: "); Serial.print(event.magnetic.x);
+//  Serial.print(", Y: "); Serial.print(event.magnetic.y);
+//  Serial.print(", Z: "); Serial.print(event.magnetic.z);
+//  Serial.println(".");
   
-  //Serial.print("Heading (degrees): "); Serial.println(headingDegrees);
-
-  //return headingDegrees;
   bearings.sort();
   //Serial.print("Average reading is "); Serial.print(bearings.getAverage()); Serial.println(" degrees.");
   return bearings.getAverage();
@@ -343,11 +350,19 @@ void backward() {
 }
 
 void right() {
-    pulse(RIGHT);
+  //pulse(RIGHT);
+  digitalWrite(RT_FWD_PIN, LOW);
+  digitalWrite(RT_BWD_PIN, HIGH);
+  digitalWrite(LF_FWD_PIN, HIGH);
+  digitalWrite(LF_BWD_PIN, LOW);
 }
 
 void left() {
-    pulse(LEFT);
+  //pulse(LEFT);
+  digitalWrite(RT_FWD_PIN, HIGH);
+  digitalWrite(RT_BWD_PIN, LOW);
+  digitalWrite(LF_FWD_PIN, LOW);
+  digitalWrite(LF_BWD_PIN, HIGH);
 }
 
 long stop(long duration) {
@@ -360,20 +375,20 @@ long stop(long duration) {
   return duration;
 }
 
-void pulse(int direction) {
-  if (direction == LEFT) {
-    digitalWrite(RT_FWD_PIN, HIGH);
-    digitalWrite(RT_BWD_PIN, LOW);
-    digitalWrite(LF_FWD_PIN, LOW);
-    digitalWrite(LF_BWD_PIN, HIGH);
-  } else {
-    // (direction == RIGHT)
-    digitalWrite(RT_FWD_PIN, LOW);
-    digitalWrite(RT_BWD_PIN, HIGH);
-    digitalWrite(LF_FWD_PIN, HIGH);
-    digitalWrite(LF_BWD_PIN, LOW);
-  }
-  delay(350);
-  stop(500);
-}
+//void pulse(int direction) {
+//  if (direction == LEFT) {
+//    digitalWrite(RT_FWD_PIN, HIGH);
+//    digitalWrite(RT_BWD_PIN, LOW);
+//    digitalWrite(LF_FWD_PIN, LOW);
+//    digitalWrite(LF_BWD_PIN, HIGH);
+//  } else {
+//    // (direction == RIGHT)
+//    digitalWrite(RT_FWD_PIN, LOW);
+//    digitalWrite(RT_BWD_PIN, HIGH);
+//    digitalWrite(LF_FWD_PIN, HIGH);
+//    digitalWrite(LF_BWD_PIN, LOW);
+//  }
+//  delay(350);
+//  stop(500);
+//}
 

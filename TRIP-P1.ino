@@ -72,6 +72,7 @@ RunningMedian bearings = RunningMedian(10);
 // Temp/humidity sensor
 dht11 DHT11;
 int chk;
+int temp = 0, hum = 0;
 String msg;
 
 // Geiger counter
@@ -194,7 +195,10 @@ void loop() {
     curMs = millis();
     if (curMs - preMs > 999) { // Send data ~1x/sec
       // Temp/humidity
-      chk = DHT11.read();
+      if ((chk = DHT11.read()) == 0) { // Clean read, no error
+        hum = DHT11.humidity;
+        temp = DHT11.temperature;
+      } // else retain & report prior readings
   
       // Geiger reading
       if (geigerEnabled) {
@@ -206,9 +210,9 @@ void loop() {
       
       // Build the message to transmit
       msg = "{";
-      msg += DHT11.humidity * 100;
+      msg += hum * 100;
       msg += ",";
-      msg += DHT11.temperature * 100;
+      msg += temp * 100;
       msg += ",";
       msg += cpm;
       msg += ",";

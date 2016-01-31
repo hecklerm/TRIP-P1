@@ -79,6 +79,7 @@ volatile unsigned long radCtr = 0; // GM Tube events
 unsigned long cpm = 0;             // radCtr Per Minute
 unsigned long curMs;
 unsigned long preMs;
+boolean geigerEnabled;
 
 void geiger_pulse() { // Captures count of events from Geiger counter board
   radCtr++;
@@ -111,8 +112,7 @@ void setup() {
 
   pinMode(GEIGER_PIN, INPUT);       // Set pin to input for capturing GM Tube events
   interrupts();                     // Enable interrupts (in case they were previously disabled)
-  attachInterrupt(digitalPinToInterrupt(GEIGER_PIN), geiger_pulse, FALLING);
-  preMs = millis();
+  enableGeiger();
   
   //Serial.setTimeout(500);   // MAH: Default is 1000ms/1s
 }
@@ -122,7 +122,7 @@ void loop() {
     Serial.readBytesUntil('\n', incoming, sizeof(incoming));
 
     for (int i=0; i<sizeof(incoming); i++) {
-      if (incoming[i] != NULL) {    
+      if (incoming[i] != NULL) {
         switch (incoming[i]) {
         case 'F':
           forward();
@@ -176,6 +176,11 @@ void loop() {
           Serial.println(">S");
           break;
         }
+        
+        if (incoming[min(i+1, sizeof(incoming))] != NULL) {
+          delay(250); // To allow for processing rapid-fire move commands
+        }
+          
       } else {
         break;
       }
@@ -192,8 +197,10 @@ void loop() {
       chk = DHT11.read();
   
       // Geiger reading
-      cpm = radCtr * (60000 / (curMs - preMs));
-      radCtr = 0;
+      if (geigerEnabled) {
+        cpm = radCtr * (60000 / (curMs - preMs));
+        radCtr = 0;
+      }
   
       // MAH TODO: Need to add in the x/y/z readings next
       
@@ -332,7 +339,7 @@ float getCurrentHeading() {
 // Go forward by setting the forward pins to HIGH
 void forward() {
   //Serial.println("Forward");
-  
+  disableGeiger();
   digitalWrite(RT_FWD_PIN, HIGH);
   digitalWrite(RT_BWD_PIN, LOW);
   digitalWrite(LF_FWD_PIN, HIGH);
@@ -342,7 +349,7 @@ void forward() {
 //Setting the wheels to go backward by setting the backward pins to HIGH
 void backward() {
   //Serial.println("Backward");
-
+  disableGeiger();
   digitalWrite(RT_FWD_PIN, LOW);
   digitalWrite(RT_BWD_PIN, HIGH);
   digitalWrite(LF_FWD_PIN, LOW);
@@ -351,6 +358,7 @@ void backward() {
 
 void right() {
   //pulse(RIGHT);
+  disableGeiger();
   digitalWrite(RT_FWD_PIN, LOW);
   digitalWrite(RT_BWD_PIN, HIGH);
   digitalWrite(LF_FWD_PIN, HIGH);
@@ -359,6 +367,7 @@ void right() {
 
 void left() {
   //pulse(LEFT);
+  disableGeiger();
   digitalWrite(RT_FWD_PIN, HIGH);
   digitalWrite(RT_BWD_PIN, LOW);
   digitalWrite(LF_FWD_PIN, LOW);
@@ -371,24 +380,25 @@ long stop(long duration) {
   digitalWrite(LF_FWD_PIN, LOW);
   digitalWrite(LF_BWD_PIN, LOW);
   delay(duration);
+  enableGeiger();
   
   return duration;
 }
 
-//void pulse(int direction) {
-//  if (direction == LEFT) {
-//    digitalWrite(RT_FWD_PIN, HIGH);
-//    digitalWrite(RT_BWD_PIN, LOW);
-//    digitalWrite(LF_FWD_PIN, LOW);
-//    digitalWrite(LF_BWD_PIN, HIGH);
-//  } else {
-//    // (direction == RIGHT)
-//    digitalWrite(RT_FWD_PIN, LOW);
-//    digitalWrite(RT_BWD_PIN, HIGH);
-//    digitalWrite(LF_FWD_PIN, HIGH);
-//    digitalWrite(LF_BWD_PIN, LOW);
-//  }
-//  delay(350);
-//  stop(500);
-//}
+
+/*
+ * ENABLE/DISABLE GEIGER COUNTER METHODS
+ */
+void enableGeiger() {
+  delay(500);   // To give EM interference a chance to die down
+  
+  geigerEnabled = true;
+  preMs = millis();
+  attachInterrupt(digitalPinToInterrupt(GEIGER_PIN), geiger_pulse, FALLING);
+}
+
+void disableGeiger() {
+  geigerEnabled = false;
+  detachInterrupt(digitalPinToInterrupt(GEIGER_PIN));
+}
 

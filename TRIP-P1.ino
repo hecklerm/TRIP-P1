@@ -63,7 +63,7 @@ Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
 Servo navServo;
 int servoPos = SERVO_FORWARD;
 long cm_to_obs = 0;
-long cmdNumber;
+long distanceL = 0, distanceR = 0, distanceF = 0;
 
 char incoming[12];
 
@@ -142,16 +142,16 @@ void loop() {
           Serial.println(">R");
           break;
         case 'f':
-          cmdNumber = pingForward();
-          Serial.print(">f"); Serial.println(cmdNumber);
+          distanceF = pingForward();
+          Serial.print(">f"); Serial.println(distanceF);
           break;
         case 'l':
-          cmdNumber = pingLeft();
-          Serial.print(">l"); Serial.println(cmdNumber);
+          distanceL = pingLeft();
+          Serial.print(">l"); Serial.println(distanceL);
           break;
         case 'r':
-          cmdNumber = pingRight();
-          Serial.print(">r"); Serial.println(cmdNumber);
+          distanceR = pingRight();
+          Serial.print(">r"); Serial.println(distanceR);
           break;
         case 'c':
           // Compass test
@@ -217,6 +217,12 @@ void loop() {
       msg += cpm;
       msg += ",";
       msg += (int) (getCurrentHeading() + .5);  // Add 1/2 & cast to int rounds to nearest whole #
+      msg += ",";
+      msg += distanceL;
+      msg += ",";
+      msg += distanceR;
+      msg += ",";
+      msg += distanceF;
       msg += "}";
       Serial.println(msg);
 
@@ -243,8 +249,8 @@ long pingRight() {
   return ping();
 }
 
-long pingDir(int dir) {
-  positionRadar(dir, true);
+long pingDir(int dir, boolean fastPos) {
+  positionRadar(dir, fastPos);
   return ping();
 }
 
@@ -384,6 +390,12 @@ long stop(long duration) {
   digitalWrite(LF_FWD_PIN, LOW);
   digitalWrite(LF_BWD_PIN, LOW);
   delay(duration);
+  
+  distanceL = pingLeft();
+  distanceR = pingRight();
+  distanceF = pingForward();
+  //distanceF = pingDir(SERVO_FORWARD, false);
+  
   enableGeiger();
   
   return duration;
